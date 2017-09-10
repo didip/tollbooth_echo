@@ -3,11 +3,6 @@
 [Echo](https://github.com/webx-top/echo) middleware for rate limiting HTTP requests.
 
 
-## Note
-
-This shim uses `v1.0.0` API.
-
-
 ## Five Minutes Tutorial
 
 ```
