@@ -43,16 +43,6 @@ func LimitByRequest(limiter *config.Limiter, r engine.Request) *errors.HTTPError
 	return nil
 }
 
-// StringInSlice finds needle in a slice of strings.
-func StringInSlice(sliceString []string, needle string) bool {
-	for _, b := range sliceString {
-		if b == needle {
-			return true
-		}
-	}
-	return false
-}
-
 func ipAddrFromRemoteAddr(s string) string {
 	idx := strings.LastIndex(s, ":")
 	if idx == -1 {
@@ -99,7 +89,7 @@ func BuildKeys(limiter *config.Limiter, r engine.Request) [][]string {
 
 	if limiter.Methods != nil && limiter.Headers != nil && limiter.BasicAuthUsers != nil {
 		// Limit by HTTP methods and HTTP headers+values and Basic Auth credentials.
-		if StringInSlice(limiter.Methods, r.Method()) {
+		if libstring.StringInSlice(limiter.Methods, r.Method()) {
 			for headerKey, headerValues := range limiter.Headers {
 				if (headerValues == nil || len(headerValues) <= 0) && r.Header().Get(headerKey) != "" {
 					// If header values are empty, rate-limit all request with headerKey.
