@@ -1,12 +1,7 @@
 package tollbooth_echo
 
 import (
-	"net/http"
-	"strings"
-
 	"github.com/didip/tollbooth"
-	"github.com/didip/tollbooth/errors"
-	"github.com/didip/tollbooth/libstring"
 	"github.com/didip/tollbooth/limiter"
 	"github.com/labstack/echo"
 )
