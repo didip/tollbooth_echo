@@ -1,35 +1,35 @@
 package tollbooth_echo
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/didip/tollbooth"
-	"github.com/didip/tollbooth/config"
 	"github.com/didip/tollbooth/errors"
 	"github.com/didip/tollbooth/libstring"
-	"github.com/webx-top/echo"
-	"github.com/webx-top/echo/engine"
+	"github.com/didip/tollbooth/limiter"
+	"github.com/labstack/echo"
 )
 
-func LimitMiddleware(limiter *config.Limiter) echo.MiddlewareFunc {
-	return func(h echo.Handler) echo.Handler {
+func LimitMiddleware(limiter *limiter.Limiter) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return echo.HandlerFunc(func(c echo.Context) error {
 			httpError := LimitByRequest(limiter, c.Request())
 			if httpError != nil {
-				return c.String(httpError.Message, httpError.StatusCode)
+				return c.String(httpError.StatusCode, httpError.Message)
 			}
-			return h.Handle(c)
+			return next(c)
 		})
 	}
 }
 
-func LimitHandler(limiter *config.Limiter) echo.MiddlewareFunc {
+func LimitHandler(limiter *limiter.Limiter) echo.MiddlewareFunc {
 	return LimitMiddleware(limiter)
 }
 
 // LimitByRequest builds keys based on http.Request struct,
 // loops through all the keys, and check if any one of them returns HTTPError.
-func LimitByRequest(limiter *config.Limiter, r engine.Request) *errors.HTTPError {
+func LimitByRequest(limiter *limiter.Limiter, r *http.Request) *errors.HTTPError {
 	sliceKeys := BuildKeys(limiter, r)
 
 	// Loop sliceKeys and check if one of them has error.
@@ -52,13 +52,13 @@ func ipAddrFromRemoteAddr(s string) string {
 }
 
 // RemoteIP finds IP Address given http.Request struct.
-func RemoteIP(ipLookups []string, r engine.Request) string {
-	realIP := r.Header().Get("X-Real-IP")
-	forwardedFor := r.Header().Get("X-Forwarded-For")
+func RemoteIP(ipLookups []string, r *http.Request) string {
+	realIP := r.Header.Get("X-Real-IP")
+	forwardedFor := r.Header.Get("X-Forwarded-For")
 
 	for _, lookup := range ipLookups {
 		if lookup == "RemoteAddr" {
-			return ipAddrFromRemoteAddr(r.RemoteAddress())
+			return ipAddrFromRemoteAddr(r.RemoteAddr)
 		}
 		if lookup == "X-Forwarded-For" && forwardedFor != "" {
 			// X-Forwarded-For is potentially a list of addresses separated with ","
@@ -76,10 +76,10 @@ func RemoteIP(ipLookups []string, r engine.Request) string {
 	return ""
 }
 
-// BuildKeys generates a slice of keys to rate-limit by given config and request structs.
-func BuildKeys(limiter *config.Limiter, r engine.Request) [][]string {
-	remoteIP := RemoteIP(limiter.IPLookups, r)
-	path := r.URL().Path()
+// BuildKeys generates a slice of keys to rate-limit by given limiter and request structs.
+func BuildKeys(limiter *limiter.Limiter, r *http.Request) [][]string {
+	remoteIP := RemoteIP(limiter.GetIPLookups(), r)
+	path := r.URL.Path
 	sliceKeys := make([][]string, 0)
 
 	// Don't BuildKeys if remoteIP is blank.
@@ -87,69 +87,69 @@ func BuildKeys(limiter *config.Limiter, r engine.Request) [][]string {
 		return sliceKeys
 	}
 
-	if limiter.Methods != nil && limiter.Headers != nil && limiter.BasicAuthUsers != nil {
+	if limiter.GetMethods() != nil && limiter.GetHeaders() != nil && limiter.GetBasicAuthUsers() != nil {
 		// Limit by HTTP methods and HTTP headers+values and Basic Auth credentials.
-		if libstring.StringInSlice(limiter.Methods, r.Method()) {
-			for headerKey, headerValues := range limiter.Headers {
-				if (headerValues == nil || len(headerValues) <= 0) && r.Header().Get(headerKey) != "" {
+		if libstring.StringInSlice(limiter.GetMethods(), r.Method) {
+			for headerKey, headerValues := range limiter.GetHeaders() {
+				if (headerValues == nil || len(headerValues) <= 0) && r.Header.Get(headerKey) != "" {
 					// If header values are empty, rate-limit all request with headerKey.
 					username, _, ok := r.BasicAuth()
-					if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
-						sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method(), headerKey, username})
+					if ok && libstring.StringInSlice(limiter.GetBasicAuthUsers(), username) {
+						sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, headerKey, username})
 					}
 
-				} else if len(headerValues) > 0 && r.Header().Get(headerKey) != "" {
+				} else if len(headerValues) > 0 && r.Header.Get(headerKey) != "" {
 					// If header values are not empty, rate-limit all request with headerKey and headerValues.
 					for _, headerValue := range headerValues {
 						username, _, ok := r.BasicAuth()
-						if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
-							sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method(), headerKey, headerValue, username})
+						if ok && libstring.StringInSlice(limiter.GetBasicAuthUsers(), username) {
+							sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, headerKey, headerValue, username})
 						}
 					}
 				}
 			}
 		}
 
-	} else if limiter.Methods != nil && limiter.Headers != nil {
+	} else if limiter.GetMethods() != nil && limiter.GetHeaders() != nil {
 		// Limit by HTTP methods and HTTP headers+values.
-		if libstring.StringInSlice(limiter.Methods, r.Method()) {
-			for headerKey, headerValues := range limiter.Headers {
-				if (headerValues == nil || len(headerValues) <= 0) && r.Header().Get(headerKey) != "" {
+		if libstring.StringInSlice(limiter.GetMethods(), r.Method) {
+			for headerKey, headerValues := range limiter.GetHeaders() {
+				if (headerValues == nil || len(headerValues) <= 0) && r.Header.Get(headerKey) != "" {
 					// If header values are empty, rate-limit all request with headerKey.
-					sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method(), headerKey})
+					sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, headerKey})
 
-				} else if len(headerValues) > 0 && r.Header().Get(headerKey) != "" {
+				} else if len(headerValues) > 0 && r.Header.Get(headerKey) != "" {
 					// If header values are not empty, rate-limit all request with headerKey and headerValues.
 					for _, headerValue := range headerValues {
-						sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method(), headerKey, headerValue})
+						sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, headerKey, headerValue})
 					}
 				}
 			}
 		}
 
-	} else if limiter.Methods != nil && limiter.BasicAuthUsers != nil {
+	} else if limiter.GetMethods() != nil && limiter.GetBasicAuthUsers() != nil {
 		// Limit by HTTP methods and Basic Auth credentials.
-		if libstring.StringInSlice(limiter.Methods, r.Method()) {
+		if libstring.StringInSlice(limiter.GetMethods(), r.Method) {
 			username, _, ok := r.BasicAuth()
-			if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
-				sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method(), username})
+			if ok && libstring.StringInSlice(limiter.GetBasicAuthUsers(), username) {
+				sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, username})
 			}
 		}
 
-	} else if limiter.Methods != nil {
+	} else if limiter.GetMethods() != nil {
 		// Limit by HTTP methods.
-		if libstring.StringInSlice(limiter.Methods, r.Method()) {
-			sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method()})
+		if libstring.StringInSlice(limiter.GetMethods(), r.Method) {
+			sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method})
 		}
 
-	} else if limiter.Headers != nil {
+	} else if limiter.GetHeaders() != nil {
 		// Limit by HTTP headers+values.
-		for headerKey, headerValues := range limiter.Headers {
-			if (headerValues == nil || len(headerValues) <= 0) && r.Header().Get(headerKey) != "" {
+		for headerKey, headerValues := range limiter.GetHeaders() {
+			if (headerValues == nil || len(headerValues) <= 0) && r.Header.Get(headerKey) != "" {
 				// If header values are empty, rate-limit all request with headerKey.
 				sliceKeys = append(sliceKeys, []string{remoteIP, path, headerKey})
 
-			} else if len(headerValues) > 0 && r.Header().Get(headerKey) != "" {
+			} else if len(headerValues) > 0 && r.Header.Get(headerKey) != "" {
 				// If header values are not empty, rate-limit all request with headerKey and headerValues.
 				for _, headerValue := range headerValues {
 					sliceKeys = append(sliceKeys, []string{remoteIP, path, headerKey, headerValue})
@@ -157,10 +157,10 @@ func BuildKeys(limiter *config.Limiter, r engine.Request) [][]string {
 			}
 		}
 
-	} else if limiter.BasicAuthUsers != nil {
+	} else if limiter.GetBasicAuthUsers() != nil {
 		// Limit by Basic Auth credentials.
 		username, _, ok := r.BasicAuth()
-		if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
+		if ok && libstring.StringInSlice(limiter.GetBasicAuthUsers(), username) {
 			sliceKeys = append(sliceKeys, []string{remoteIP, path, username})
 		}
 	} else {

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/didip/tollbooth"
-	"github.com/didip/tollbooth/thirdparty/tollbooth_echo"
+	"github.com/didip/tollbooth_echo"
 	"github.com/webx-top/echo"
 	"github.com/webx-top/echo/engine/standard"
 )
@@ -13,7 +13,7 @@ func main() {
 	e := echo.New()
 
 	// Create a limiter struct.
-	limiter := tollbooth.NewLimiter(1, time.Second)
+	limiter := tollbooth.NewLimiter(1, time.Second, nil)
 
 	e.Get("/", echo.HandlerFunc(func(c echo.Context) error {
 		return c.String("Hello, World!", 200)
