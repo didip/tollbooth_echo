@@ -9,7 +9,7 @@ import (
 func LimitMiddleware(lmt *limiter.Limiter) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return echo.HandlerFunc(func(c echo.Context) error {
-			httpError := tollbooth.LimitByRequest(lmt, c.Request())
+			httpError := tollbooth.LimitByRequest(lmt, c.Response(), c.Request())
 			if httpError != nil {
 				return c.String(httpError.StatusCode, httpError.Message)
 			}
