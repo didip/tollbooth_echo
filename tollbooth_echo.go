@@ -3,7 +3,7 @@ package tollbooth_echo
 import (
 	"github.com/didip/tollbooth"
 	"github.com/didip/tollbooth/limiter"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 func LimitMiddleware(lmt *limiter.Limiter) echo.MiddlewareFunc {
