@@ -21,7 +21,12 @@ func main() {
 	e := echo.New()
 
 	// Create a limiter struct.
-	limiter := tollbooth.NewLimiter(1, time.Second, nil)
+	limiter := tollbooth.NewLimiter(1, nil)
+	// or
+	// var tbOptions  limiter.ExpirableOptions
+	// tbOptions.DefaultExpirationTTL = time.Second
+	// tbOptions.ExpireJobInterval = 0
+	// limiter := tollbooth.NewLimiter(1, &tbOptions)
 
 	e.Get("/", echo.HandlerFunc(func(c echo.Context) error {
 		return c.String("Hello, World!", 200)
