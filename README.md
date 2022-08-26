@@ -1,20 +1,32 @@
 ## tollbooth_echo
 
-[Echo](https://github.com/webx-top/echo) middleware for rate limiting HTTP requests.
+[Echo](https://github.com/labstack/echo) middleware for rate limiting HTTP requests.
 
 
 ## Five Minutes Tutorial
+
+Open terminal 
+
+```bash
+cd test
+go run main.go
+```
+
+in another terminal
+
+```bash
+cd scripts
+./test.sh
+```
 
 ```
 package main
 
 import (
-	"time"
-
-	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth/v7"
 	"github.com/didip/tollbooth_echo"
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/engine/standard"
+	"github.com/labstack/echo/v4"
+	"net/http"
 )
 
 func main() {
@@ -28,11 +40,11 @@ func main() {
 	// tbOptions.ExpireJobInterval = 0
 	// limiter := tollbooth.NewLimiter(1, &tbOptions)
 
-	e.Get("/", echo.HandlerFunc(func(c echo.Context) error {
-		return c.String("Hello, World!", 200)
+	e.GET("/", echo.HandlerFunc(func(c echo.Context) error {
+		return echo.NewHTTPError(http.StatusOK, "OK")
 	}), tollbooth_echo.LimitHandler(limiter))
 
-	e.Run(standard.New(":4444"))
+	e.Start(":4444")
 }
 
 ```
