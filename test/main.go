@@ -1,12 +1,10 @@
 package main
 
 import (
-	"time"
-
-	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth/v7"
 	"github.com/didip/tollbooth_echo"
-	"github.com/webx-top/echo"
-	"github.com/webx-top/echo/engine/standard"
+	"github.com/labstack/echo/v4"
+	"net/http"
 )
 
 func main() {
@@ -15,14 +13,14 @@ func main() {
 	// Create a limiter struct.
 	limiter := tollbooth.NewLimiter(1, nil)
 	// or
-	// var tbOptions  limiter.ExpirableOptions
+	// var tbOptions limiter.ExpirableOptions
 	// tbOptions.DefaultExpirationTTL = time.Second
 	// tbOptions.ExpireJobInterval = 0
 	// limiter := tollbooth.NewLimiter(1, &tbOptions)
 
-	e.Get("/", echo.HandlerFunc(func(c echo.Context) error {
-		return c.String("Hello, World!", 200)
+	e.GET("/", echo.HandlerFunc(func(c echo.Context) error {
+		return echo.NewHTTPError(http.StatusOK, "OK")
 	}), tollbooth_echo.LimitHandler(limiter))
 
-	e.Run(standard.New(":4444"))
+	e.Start(":4444")
 }
